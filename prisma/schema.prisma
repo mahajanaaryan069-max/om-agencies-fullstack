@@ -1,0 +1,78 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  passwordHash      String
+  name              String?
+  phone             String?
+  role              String    @default("user") // "user" | "admin"
+  customerType      String    @default("residential") // "residential" | "commercial" | "society"
+  locality          String?   // "N-11 HUDCO", "CIDCO", "Ulkanagari", etc.
+  address           String?
+  msedclConsumerNo  String?
+  sanctionedLoad    Float?    // kW
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  projects          Project[]
+  payments          Payment[]
+}
+
+model Project {
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectNumber   String        @unique // e.g. "OM-2026-089"
+  serviceType     String        // "Rooftop Solar EPC" | "Supreme Solar Water Heater" | "Geyser Repair & Descaling"
+  capacity        String        // "3 kW" | "200 LPD"
+  systemSizeKw    Float?        // e.g. 3.0
+  brand           String        @default("Waaree / Tata Power")
+  locality        String
+  installationSite String
+  status          String        @default("survey_scheduled") // "survey_scheduled" | "msedcl_paperwork" | "installation" | "commissioned"
+  scheduledDate   DateTime?
+  grossCost       Float         @default(0)
+  subsidyAmount   Float         @default(0) // PM Surya Ghar DBT Subsidy
+  netCost         Float         @default(0)
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  items           ProjectItem[]
+  payments        Payment[]
+}
+
+model ProjectItem {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  description String
+  specification String?
+  quantity    Float    @default(1)
+  rate        Float    @default(0)
+  amount      Float    @default(0)
+  createdAt   DateTime @default(now())
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId     String?
+  project       Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  amount        Float
+  currency      String   @default("INR")
+  method        String   @default("bank_transfer") // "upi" | "card" | "cheque" | "bank_transfer"
+  status        String   @default("completed") // "pending" | "completed"
+  transactionId String?
+  notes         String?
+  createdAt     DateTime @default(now())
+}
